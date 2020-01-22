@@ -28,14 +28,29 @@ type EchoHandler struct{}
 
 // ServeHTTP echos requests back in the response body.
 func (EchoHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+
+	// Rebuild the original header
+	url := r.URL.Path
+	if r.URL.RawQuery != "" {
+		url += "?" + r.URL.RawQuery
+	}
+	if r.URL.Fragment != "" {
+		url += "#" + r.URL.Fragment
+	}
+
 	// Log the request.
-	log.Printf("Got request: %s %s %s", r.Method, r.URL.Path, r.Proto)
+	log.Printf("Got request: %s %s %s", r.Method, url, r.Proto)
 
 	// Set an example response header.
 	w.Header().Set("x-example-header", "Hello World!")
 
+	secretHeader := r.Header.Get("X-Example-Shared-Secret")
+	if secretHeader != "mjNWG+SfITpZLB75e8KPGnPBp1/GkWndwlIQB18+Kao=" {
+		w.Write([]byte("Direct request to origin detected!\n\n"))
+	}
+
 	// Write the first request line back to the response body.
-	resp := fmt.Sprintf("%s %s %s\n", r.Method, r.URL.Path, r.Proto)
+	resp := fmt.Sprintf("%s %s %s\n", r.Method, url, r.Proto)
 	_, err := w.Write([]byte(resp))
 	if err != nil {
 		log.Printf("write first request line: %v", err)
