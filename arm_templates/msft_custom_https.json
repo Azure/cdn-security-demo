@@ -1,0 +1,64 @@
+{
+  "$schema": "https://schema.management.azure.com/schemas/2015-01-01/deploymentTemplate.json#",
+  "contentVersion": "1.0.0.0",
+  "parameters": {
+    "profileName": {
+      "type": "string",
+      "metadata": {
+        "description": "The name of the CDN profile"
+      }
+    },
+    "endpointName": {
+      "type": "string",
+      "metadata": {
+        "description": "The name of the CDN endpoint"
+      }
+    },
+    "endpointProperties": {
+      "type": "object",
+      "metadata": {
+        "description": "The properties of the CDN endpoint. See msft_custom_https_params.json for an example value"
+      }
+    }
+  },
+  "variables": {
+    "location": "[resourceGroup().location]",
+    "apiVersion": "2019-04-15"
+  },
+  "resources": [
+    {
+      "apiVersion": "[variables('apiVersion')]",
+      "type": "microsoft.cdn/profiles",
+      "name": "[parameters('profileName')]",
+      "location": "[variables('location')]",
+      "sku": "Standard_Microsoft"
+    },
+    {
+      "apiVersion": "[variables('apiVersion')]",
+      "type": "microsoft.cdn/profiles/endpoints",
+      "dependsOn": [
+        "[concat('Microsoft.Cdn/profiles/', parameters('profileName'))]"
+      ],
+      "name": "[concat(parameters('profileName'),'/',parameters('endpointName'))]",
+      "location": "[variables('location')]",
+      "properties": "[parameters('endpointProperties')]"
+    },
+    {
+      "apiVersion": "[variables('apiVersion')]",
+      "type": "microsoft.cdn/customdomains",
+      "name": "[parameters('customDomainName')]",
+      "properties": {
+        "hostName": "[parameters('customDomainHostName')]",
+        "customHttpsParameters": {
+          "certificateSource": "Cdn",
+          "certificateSourceParameters": {
+            "@odata.type": "#Microsoft.Azure.Cdn.Models.CdnCertificateSourceParameters",
+            "certificateType": "Dedicated"
+          },
+          "minimumTLSVersion": "TLS12",
+          "protocolType": "ServerNameIndication"
+        }
+      }
+    }
+  ]
+}

@@ -1,0 +1,116 @@
+{
+  "$schema": "https://schema.management.azure.com/schemas/2015-01-01/deploymentTemplate.json#",
+  "contentVersion": "1.0.0.0",
+  "parameters": {
+    "wafPolicyName": {
+      "type": "string",
+      "metadata": {
+        "description": "The name of the WAF policy"
+      }
+    },
+    "profileName": {
+      "type": "string",
+      "metadata": {
+        "description": "The name of the parent profile for the linked endpoint"
+      }
+    },
+    "endpointName": {
+      "type": "string",
+      "metadata": {
+        "description": "The name of the linked endpoint"
+      }
+    },
+    "originUrl": {
+      "type": "string",
+      "defaultValue": "example.com",
+      "metadata": {
+        "description": "The origin of the linked endpoint"
+      }
+    }
+  },
+  "variables": {
+    "wafpolicyref": "[resourceId('Microsoft.Cdn/CdnWebApplicationFirewallPolicies', parameters('wafPolicyName'))]",
+    "location": "[resourceGroup().location]",
+    "apiVersion": "2019-06-15-preview"
+  },
+  "resources": [
+    {
+      "apiVersion": "[variables('apiVersion')]",
+      "type": "Microsoft.Cdn/cdnWebApplicationFirewallPolicies",
+      "name": "[parameters('wafPolicyName')]",
+      "location": "global",
+      "tags": {},
+      "sku": {
+        "name": "Standard_Microsoft"
+      },
+      "properties": {
+        "policySettings": {
+          "enabledState": "Enabled",
+          "mode": "Prevention",
+          "defaultCustomBlockResponseStatusCode": 429
+        },
+        "customRules": {
+          "rules": [
+            {
+              "name": "BlockIPv6",
+              "priority": 1,
+              "enabledState": "Enabled",
+              "matchConditions": [
+                {
+                  "matchVariable": "RemoteAddr",
+                  "selector": null,
+                  "operator": "IPMatch",
+                  "negateCondition": false,
+                  "matchValue": [
+                    "::0/0"
+                  ]
+                }
+              ],
+              "action": "Block"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "name": "[concat(parameters('profileName'), '/', parameters('endpointName'))]",
+      "type": "Microsoft.Cdn/profiles/endpoints",
+      "location": "[variables('location')]",
+      "apiVersion": "[variables('apiVersion')]",
+      "dependsOn": [
+        "[resourceId('Microsoft.Cdn/cdnWebApplicationFirewallPolicies', parameters('wafPolicyName'))]"
+      ],
+      "properties": {
+        "webApplicationFirewallPolicyLink": {
+          "id": "[variables('wafpolicyref')]"
+        },
+        "originHostHeader": "[parameters('originUrl')]",
+        "isHttpAllowed": true,
+        "isHttpsAllowed": true,
+        "queryStringCachingBehavior": "IgnoreQueryString",
+        "contentTypesToCompress": [
+          "text/plain",
+          "text/html",
+          "text/css",
+          "application/x-javascript",
+          "text/javascript"
+        ],
+        "isCompressionEnabled": true,
+        "origins": [
+          {
+            "name": "origin1",
+            "properties": {
+              "hostName": "[parameters('originUrl')]"
+            }
+          }
+        ]
+      }
+    }
+  ],
+  "outputs": {
+    "wafLink": {
+      "type": "string",
+      "value": "[resourceId('Microsoft.Cdn/CdnWebApplicationFirewallPolicies', parameters('wafPolicyName'))]"
+    }
+  }
+}
